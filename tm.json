@@ -1,0 +1,82 @@
+{
+    "tape": [
+        "1",
+        "1",
+        "1",
+        "B"
+    ],
+    "rules": [
+        {
+            "from": -2,
+            "read": "1",
+            "trans": {
+                "target": 1,
+                "write": "1",
+                "move": "right"
+            }
+        },
+        {
+            "from": 1,
+            "read": "1",
+            "trans": {
+                "target": 2,
+                "write": "$",
+                "move": "right"
+            }
+        },
+        {
+            "from": 2,
+            "read": "B",
+            "trans": {
+                "target": 3,
+                "write": "B",
+                "move": "left"
+            }
+        },
+        {
+            "from": 2,
+            "read": "1",
+            "trans": {
+                "target": 2,
+                "write": "1",
+                "move": "right"
+            }
+        },
+        {
+            "from": 3,
+            "read": "1",
+            "trans": {
+                "target": 3,
+                "write": "1",
+                "move": "left"
+            }
+        },
+        {
+            "from": 3,
+            "read": "$",
+            "trans": {
+                "target": 4,
+                "write": "$",
+                "move": "right"
+            }
+        },
+        {
+            "from": 4,
+            "read": "1",
+            "trans": {
+                "target": 2,
+                "write": "$",
+                "move": "right"
+            }
+        },
+        {
+            "from": 4,
+            "read": "B",
+            "trans": {
+                "target": -1,
+                "write": "B",
+                "move": "right"
+            }
+        }
+    ]
+}

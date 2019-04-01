@@ -1,3 +1,9 @@
 (executable
 (name emulator)
-(libraries core))
+(modules emulator)
+(libraries core json_parser))
+
+(library
+(name json_parser)
+(modules json_parser)
+(libraries core yojson))

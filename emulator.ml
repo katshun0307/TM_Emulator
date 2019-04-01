@@ -1,4 +1,5 @@
 open Core
+open Json_parser.Json_parser
 
 exception Undefined_transition
 exception End_of_tape
@@ -53,6 +54,14 @@ type transition_rule = {
   trans : transition
 }
 
+let string_of_transition_rule r = 
+  sprintf "{from: %s; read: %s;
+  trans: %s" 
+    (string_of_states r.from) (string_of_symbols r.read)
+    (string_of_transition r.trans)
+
+let transitions = ref ([]: transition_rule list)
+
 type tape =
   | Head
   | Column of {mutable left : tape; mutable content : symbols; mutable right : tape}
@@ -89,33 +98,14 @@ type head = {
   mutable current_state : states
 }
 
-let string_of_head h = 
+let string_of_head h step = 
   sprintf 
-    "--------\ncurrent_state : %s\ntape_content : %s\n"
-    (string_of_states h.current_state) (string_of_tape_contents h.arrow) 
+    "--------\nstep : %s\ncurrent_state : %s\ntape_content : %s\n"
+    (string_of_int step) (string_of_states h.current_state) (string_of_tape_contents h.arrow) 
 
 type machine = {
   head: head;
 }
-
-(* define TM  >>> *)
-
-let transitions : transition_rule list = 
-  [
-    {from = InitialState; read = Alphabet "1";
-     trans = {
-       target = InitialState;
-       write = Alphabet "#";
-       move = Right
-     }};
-    {from = InitialState; read = Blank;
-     trans = {
-       target = EndState;
-       write = Alphabet "$";
-       move = Right
-     }};
-  ]
-(* >>> define TM *)
 
 let get_tape_content (t: tape) = 
   match t with
@@ -152,7 +142,7 @@ let get_left_tape (t: tape) =
   | Tail -> raise End_of_tape
 
 let get_next_trans from read = 
-  match List.find transitions ~f:(fun {from=f; read=r; _} -> f = from && read = r) with
+  match List.find !transitions ~f:(fun {from=f; read=r; _} -> f = from && read = r) with
   | Some trans -> trans.trans
   | None -> raise Undefined_transition
 
@@ -182,14 +172,67 @@ let run_step (m: machine) =
 
 let run_all (m:machine) = 
   let cont = ref true in
+  let step = ref 0 in
   while !cont do
-    print_string (string_of_head m.head);
+    print_string (string_of_head m.head !step);
     let has_next = run_step m in
-    if not has_next then cont := false else (); 
+    if not has_next then cont := false else ();
+    step := !step + 1;
   done;
-  print_string (string_of_head m.head ^ "\n === finished ===\n")
+  print_string (string_of_head m.head !step ^ 
+                (sprintf "\n === finished with total steps of %i ===\n" !step) )
+
+let read_init_tape j = 
+  let json_list = get_json_list j [] in
+  let str_list = List.map json_list 
+      ~f:(fun j -> 
+          let raw_str = get_json_string j [] in
+          if raw_str = "B" then Blank else Alphabet raw_str ) 
+  in init_tape_from_list str_list
+
+let read_trans_rule j = 
+  let from_ = get_json_int j [FromDict "from"] in
+  let read_ = get_json_string j [FromDict "read"] in
+  let trans_j = get_json j [FromDict "trans"] in
+  let target_ = get_json_int trans_j [FromDict "target"] in
+  print_string (string_of_int target_);
+  let write_ = get_json_string trans_j [FromDict "write"] in
+  let move_ = get_json_string trans_j [FromDict "move"] in
+  {
+    from = if from_ = -2 then InitialState else if from_ = -1 then EndState else State from_;
+    read = if read_ = "B" then Blank else Alphabet read_;
+    trans = {
+      target = if target_ = -2 then InitialState else if target_ = -1 then EndState else State target_;
+      write = if write_ = "B" then Blank else Alphabet write_;
+      move = if move_ = "right" then Right else if move_ = "left" then Left else raise (Invalid_argument "error in json file")
+    }
+  }
+
+let read_from_file filename = 
+  let j_s = init (In_channel.read_all filename) in
+  let init_tape = read_init_tape (get_json j_s [FromDict "tape"]) in
+  let trans_rules = List.map (get_json_list j_s [FromDict "rules"]) 
+      ~f:(fun j -> read_trans_rule j) in
+  transitions := trans_rules;
+  print_string (String.concat ~sep:"\n" (List.map trans_rules ~f:string_of_transition_rule) ^ "\n");
+  {head={arrow=init_tape; current_state=InitialState}}
+
+let main f = 
+  let m = read_from_file f in
+  run_all m
+
+let filename_param =
+  let open Command.Param in
+  anon ("filename" %: string)
+
+let command = 
+  Command.basic
+    ~summary:"Turing Machine Emulator"
+    ~readme:(fun () -> "This program emulates a turing machine with transition functions as json input.")
+    (Command.Param.map filename_param ~f:(fun filename -> (fun () -> main filename)))
 
 let _ = 
-  let init_tape = init_tape_from_list [Alphabet "1";Alphabet "1";Alphabet "1";Alphabet "1";Blank] in
-  let m = {head={arrow=init_tape; current_state=InitialState}} in
-  run_all m;
+  Command.run ~version:"1.0" command;
+  (* let init_tape = init_tape_from_list [Alphabet "1";Alphabet "1";Blank] in
+     let m = {head={arrow=init_tape; current_state=InitialState}} in
+     run_all m; *)
