@@ -4,8 +4,8 @@
 
 ## run 
 
-```
+```bash
+make json_parser.cmxa
 make emulator.exe
-./_build/default/emulator.exe
+./_build/default/emulator.exe tm.json
 ```
-
